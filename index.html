@@ -367,6 +367,43 @@
     font-style: italic;
     padding: 6px 0;
   }
+
+  /* ─── MOBILE ─── */
+  @media (max-width: 768px) {
+    header {
+      padding: 32px 20px 24px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 20px;
+    }
+    .header-left h1 { font-size: 28px; }
+    .header-stats { gap: 20px; }
+    .stat-num { font-size: 24px; }
+
+    .status-bar {
+      margin: 20px;
+      padding: 16px 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .status-date { margin-left: 0; width: 100%; }
+    #sync-status { margin-left: 0 !important; }
+
+    .phases-wrapper {
+      padding: 0 20px 40px;
+      overflow-x: visible;
+    }
+    .phases {
+      flex-direction: column;
+      min-width: unset;
+      gap: 16px;
+    }
+    .phase { width: 100%; }
+
+    .phases-connector { display: none; }
+
+    .modal { width: calc(100vw - 40px); padding: 24px 20px; }
+  }
 </style>
 </head>
 <body>
