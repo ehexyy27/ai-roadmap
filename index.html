@@ -401,6 +401,7 @@
     <span>Фаза 1 — Фундамент · Самостоятельное изучение ИИ</span>
   </div>
   <div class="status-date" id="status-date"></div>
+  <div id="sync-status" style="font-size:13px;color:#6b6b8a;margin-left:16px;">◌ Загрузка...</div>
 </div>
 
 <!-- CONNECTOR -->
@@ -423,7 +424,37 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+// ── FIREBASE ──────────────────────────────────────────────────────────
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBtwvzwlVudb4pTOjypR-vniUOx0_30aag",
+  authDomain: "ai-roadmap-5c6b4.firebaseapp.com",
+  projectId: "ai-roadmap-5c6b4",
+  storageBucket: "ai-roadmap-5c6b4.firebasestorage.app",
+  messagingSenderId: "216499259168",
+  appId: "1:216499259168:web:cac6c5f9463731330b7945"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db    = getFirestore(fbApp);
+const REF   = doc(db, 'roadmap', 'data');
+
+function setSyncStatus(status) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  const map = {
+    syncing: { text: '⟳ Синхронизация...', color: '#fbbf24' },
+    synced:  { text: '✓ Синхронизировано',  color: '#34d399' },
+    error:   { text: '✕ Ошибка',            color: '#f87171' },
+    offline: { text: '◌ Локально',          color: '#6b6b8a' },
+  };
+  const s = map[status] || map.offline;
+  el.textContent = s.text;
+  el.style.color  = s.color;
+}
+
 // ── DATA ──────────────────────────────────────────────────────────────
 const PHASES = [
   {
@@ -528,9 +559,17 @@ let state = JSON.parse(localStorage.getItem('ai_roadmap') || 'null') || {
   p4: { achieve: [], fail: [], goal: PHASES[3].sections.goal.defaults.slice() },
 };
 
-function save() {
+async function save() {
   localStorage.setItem('ai_roadmap', JSON.stringify(state));
   updateStats();
+  try {
+    setSyncStatus('syncing');
+    await setDoc(REF, state);
+    setSyncStatus('synced');
+  } catch(e) {
+    console.error(e);
+    setSyncStatus('error');
+  }
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────
@@ -626,7 +665,7 @@ function updateStats() {
 // ── MODAL ─────────────────────────────────────────────────────────────
 let modalCtx = null;
 
-function openModal(phaseId, type, label) {
+window.openModal = function(phaseId, type, label) {
   modalCtx = { phaseId, type };
   document.getElementById('modal-title').textContent = label;
   document.getElementById('modal-input').value = '';
@@ -640,7 +679,7 @@ function openModal(phaseId, type, label) {
   setTimeout(() => document.getElementById('modal-input').focus(), 50);
 }
 
-function closeModal() {
+window.closeModal = function closeModal() {
   document.getElementById('modal').classList.remove('open');
   modalCtx = null;
 }
@@ -666,7 +705,7 @@ document.getElementById('modal').addEventListener('click', e => {
 });
 
 // ── DELETE ────────────────────────────────────────────────────────────
-function deleteItem(phaseId, type, idx) {
+window.deleteItem = function(phaseId, type, idx) {
   state[phaseId][type].splice(idx, 1);
   save();
   render();
@@ -687,7 +726,35 @@ function setDates() {
 
 // ── INIT ──────────────────────────────────────────────────────────────
 setDates();
-render();
+
+// Real-time listener
+onSnapshot(REF, (snap) => {
+  if (!snap.exists()) return;
+  const data = snap.data();
+  if (JSON.stringify(data) === JSON.stringify(state)) return;
+  state = data;
+  localStorage.setItem('ai_roadmap', JSON.stringify(state));
+  render();
+  setSyncStatus('synced');
+}, () => setSyncStatus('error'));
+
+// Load from cloud then render
+(async () => {
+  try {
+    setSyncStatus('syncing');
+    const snap = await getDoc(REF);
+    if (snap.exists()) {
+      state = snap.data();
+      localStorage.setItem('ai_roadmap', JSON.stringify(state));
+    } else {
+      await setDoc(REF, state);
+    }
+    setSyncStatus('synced');
+  } catch(e) {
+    setSyncStatus('offline');
+  }
+  render();
+})();
 </script>
 </body>
 </html>
